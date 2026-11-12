@@ -1,0 +1,40 @@
+{
+  "title": "Dynamic Pricing Regulation for Public Shared Autonomous Vehicle Services: computational record",
+  "upload_type": "software",
+  "license": "Apache-2.0",
+  "version": "v1.0.0",
+  "description": "<p>Frozen computational record supporting the manuscript &ldquo;Dynamic Pricing Regulation for Public Shared Autonomous Vehicle Services&rdquo;, prepared for submission to <em>Transportation Research Part B: Methodological</em>.</p><p>The record contains the simulator and constrained PPO source code, training and validation scripts, static-fare, checkpoint-selection, headline and common-target evaluation workflows, selected policy checkpoints, frozen candidate and scenario manifests, seed-level result archives, recorded computational environments, and SHA-256 provenance over every file.</p><p>The three processed runtime input files required for re-execution are identified by SHA-256 hash in the provenance directory and in Table EC12 of the electronic companion. The data-availability statement in the repository README identifies the public research-data record containing them.</p>",
+  "creators": [
+    {
+      "name": "Zigah, Elias",
+      "affiliation": "Laboratoire Génie Industriel, CentraleSupélec, Université Paris-Saclay, France",
+      "orcid": "0000-0002-3363-9041"
+    },
+    {
+      "name": "Abdin, Adam",
+      "affiliation": "Laboratoire Génie Industriel, CentraleSupélec, Université Paris-Saclay, France",
+      "orcid": "0000-0003-4645-0640"
+    },
+    {
+      "name": "Nicolaï, Isabelle",
+      "affiliation": "Laboratoire Génie Industriel, CentraleSupélec, Université Paris-Saclay, France",
+      "orcid": "0000-0003-2238-1062"
+    }
+  ],
+  "keywords": [
+    "constrained Markov decision process",
+    "reinforcement learning",
+    "dynamic pricing",
+    "shared autonomous vehicles",
+    "affordability",
+    "public transport",
+    "policy certification"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/elias-zigah/cmdp-affordability-pricing",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
