@@ -180,16 +180,19 @@ and contributes no reported result.
 
 ## Data availability
 
-The three processed runtime inputs supporting the study are `hourly_demand.csv`,
-`enriched_trip_requests.csv` and `zone_demand_summary.json`. They are deposited in the public
-research-data record linked below. SHA-256 values in Table EC12 and `provenance/` identify the
-exact versions used in the reported experiments.
+The three processed runtime inputs required for re-execution are `hourly_demand.csv`,
+`enriched_trip_requests.csv` and `zone_demand_summary.json`. They are not held in this repository.
+They are being deposited in a public research-data record, and this section will carry that
+record's identifier once the deposit is complete. Until then they are available from the
+corresponding author on request.
 
-**Data record:** `[INSERT PUBLIC DATA REPOSITORY URL BEFORE RELEASE]`
+SHA-256 values in Table EC12 of the electronic companion and in `provenance/` identify the exact
+versions used in the reported experiments, so an independently obtained copy can be verified
+against the files the study used.
 
 The present repository contains the code, checkpoints, manifests, workflows and frozen result
 records required to audit the reported analysis. Re-execution additionally requires the three
-processed input files from the linked data record.
+processed input files.
 
 ## Integrity
 
@@ -199,22 +202,22 @@ included file. Verification commands are provided in `provenance/VERIFY_ARCHIVE.
 
 ## Citation
 
-Create a numbered release and archive it in a DOI-issuing repository before making the
-computational record public. Replace the placeholders below with the complete manuscript author
-list and the final DOI.
+Cite the numbered release rather than the development branch, so that a citation resolves to the
+exact computational state behind the reported results.
 
 ```bibtex
 @software{zigah_cmdp_pricing_2026,
-  author    = {Zigah, Elias and [COAUTHORS]},
-  title     = {Computational Archive for Dynamic Pricing Regulation for Public Shared
-               Autonomous Vehicle Services},
-  year      = {2026},
-  version   = {1.0.0},
-  publisher = {Zenodo},
-  doi       = {[DOI]},
-  url       = {https://doi.org/[DOI]}
+  author  = {Zigah, Elias and Abdin, Adam and Nicola{\"i}, Isabelle},
+  title   = {Computational Archive for Dynamic Pricing Regulation for Public Shared
+             Autonomous Vehicle Services},
+  year    = {2026},
+  version = {1.0.0},
+  url     = {https://github.com/elias-zigah/cmdp-affordability-pricing/releases/tag/v1.0.0}
 }
 ```
+
+Once the release is deposited in a DOI-issuing archive, add `doi` and `publisher` fields and cite
+the version DOI in place of the release URL.
 
 ## Acknowledgements
 
@@ -224,5 +227,3 @@ operation of on-demand shared autonomous vehicle services. Their feedback helped
 modelling assumptions and policy questions with the operational context of public transport
 provision. This research was conducted within the framework of the European Union's ULTIMO
 project. The interpretations and conclusions remain those of the authors.
-
-
