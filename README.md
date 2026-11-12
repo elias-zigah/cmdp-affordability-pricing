@@ -1,155 +1,228 @@
-# Dynamic pricing under affordability regulation
+# Dynamic Pricing Regulation for Public Shared Autonomous Vehicle Services
 
-Constrained deep reinforcement learning for fare setting in a publicly managed shared autonomous
-vehicle service. The operator maximises profit subject to an affordability standard that must
-hold in expectation over the deployed stochastic policy.
+This repository contains the frozen computational record for a study of request-specific dynamic
+pricing in a publicly managed shared autonomous vehicle service. The study formulates fare-setting
+as a constrained Markov decision process in which the operator maximises economic return subject
+to a long-run affordability requirement.
 
-> **Status.** Manuscript under preparation for submission to *Transportation Research Part B: Methodological*.
-> This repository currently holds the reproducibility record below. Code and the replication
-> archive are planned for release following acceptance, subject to data-sharing permissions.
+> **Status.** Submission package prepared for *Transportation Research Part B: Methodological*.
+> The repository contains the source code, evaluation workflows, selected policy checkpoints,
+> frozen manifests, result archives and SHA-256 provenance supporting the manuscript.
 
 ---
 
-## The problem
+## Research problem
 
-A public operator running an autonomous ride service faces a fare decision with two sides. Raising
-fares protects margin and shortens waits by suppressing demand. It also prices out the passengers
-the service was publicly mandated to carry, and in a market with memory it erodes the demand base
-that makes the service viable in the first place.
+Request-specific pricing allows an on-demand transport operator to respond to variation in
+demand, expected trip costs, modelled traveller valuations and vehicle availability. The same
+flexibility can produce fare quotes above the benchmark associated with a prescribed share of
+comparable travellers. The study examines whether dynamic pricing can improve economic
+performance while satisfying a prespecified limit on the long-run mean exceedance above that
+benchmark.
 
-Formulated as a constrained Markov decision process, the operator maximises discounted profit
-subject to a bound on the expected per-decision affordability cost:
+For the multiplier quoted at pricing decision `t`, the affordability cost and policy-level
+requirement are
 
+```text
+c_t = max(0, m_t − m_t^aff)
+
+J_C(π) = lim sup_{T→∞} (1/T) E_π[Σ_{t=0}^{T−1} c_t]
+
+J_C(π) ≤ τ,    τ = 0.0025
 ```
-c(s, a) = max(0, m − m̂)                        one-step cost on a single fare quote
-J_C(π)  = E_{s ~ d_π,  a ~ π(·|s)} [ c(s, a) ]   constrained quantity
-J_C(π) ≤ τ                                      regulatory budget
-```
 
-where `m` is the applied fare multiplier, `m̂` an affordability benchmark derived from the
-willingness-to-pay distribution at a chosen coverage probability, `d_π` the state distribution
-induced by the policy, and `τ` a budget in fare-multiplier units. Cost is a hinge, so only
-exceedance is charged, and the expectation is over actions sampled from the stochastic policy
-because a deployed policy issues sampled quotes.
+Here, `m_t` is the executed fare multiplier and `m_t^aff` is the state-dependent affordability
+benchmark for the assigned coverage target. The budget `τ` is expressed in fare-multiplier units.
+The one-step cost is a hinge, so only the positive part of the exceedance contributes to the
+long-run mean.
 
-Three quantities are distinct and are kept distinct throughout. `J_C(π)` is the constrained
-object. During training it is estimated by the rollout mean of `c` over sampled actions, and that
-estimate is the signal the dual controller acts on. At evaluation it is re-estimated on
-independent seeds and tested by a one-sided upper confidence bound. A separate diagnostic
-evaluates `c` at the conditional mean action, which is not the constrained quantity but isolates
-systematic overpricing from exploration (see below).
+The executed action matters because the learned policy is stochastic. Training estimates the
+constraint signal from the rollout mean of the raw sampled-action costs. Independent evaluation
+re-estimates the same quantity on reserved annual seeds. A separate diagnostic evaluates cost at
+the conditional mean action and isolates the contribution of stochastic action selection.
 
 ## Method
 
-- **Two-critic PPO.** Separate value heads for reward and constraint cost.
-- **Lagrangian dual** on the constraint, with the multiplier driven by a normalised rectified PI
-  controller: the controller acts on the relative gap `J_C/τ − 1`, the proportional term is
-  rectified at zero so an inactive constraint cannot push the multiplier negative, and
-  conditional integration prevents windup.
-- **Equilibrium multiplier audit.** A frozen-checkpoint sweep estimates the equilibrium dual
-  variable independently of training, by three separate zero-crossing criteria. The estimates
-  agree and predict the converged operating point out of sample, which makes the dual value a
-  measured quantity rather than a training artefact.
-- **Exploration premium decomposition.** Constraint cost is reported both for sampled actions and
-  for the conditional mean action. The difference isolates how much of the budget stochastic
-  execution consumes, as distinct from systematic overpricing by the learned fare rule.
+- **Two-critic proximal policy optimisation.** Separate critics estimate discounted economic
+  return and unscaled affordability cost.
+- **PI-Lagrangian constraint control.** The controller acts on the normalised constraint gap
+  `J_C/τ − 1`. Rectification prevents negative penalty pressure when the constraint is inactive,
+  and conditional integration limits integral overshoot.
+- **Persistent demand response.** A demand-health state links accumulated price-out experiences
+  to the future request process.
+- **Exploration-premium decomposition.** The analysis compares sampled-action cost with cost at
+  the conditional mean action to measure the affordability cost attributable to stochastic
+  execution.
+- **Independent confirmation.** Training, checkpoint selection and final annual evaluation use
+  mutually disjoint seed sets.
 
-## Headline results
+## Evaluated policies and headline results
 
-Five policies compared: unconstrained dynamic pricing, three constrained policies trained at
-affordability coverage targets of 0.70, 0.80 and 0.90, and an optimised static fare of 1.05. All
-evaluated against a common 0.80 affordability benchmark, averaged over three independent training
-replications and five independent annual evaluation seeds.
+The study compares Reward-only dynamic pricing, three constrained policies trained at coverage
+targets of 0.70, 0.80 and 0.90, and an optimised static fare multiplier of 1.05. The common-target
+analysis evaluates every policy against the same 0.80 affordability benchmark. Reported
+configuration means aggregate three independent training replications, each evaluated with five
+independent annual seeds.
 
-| Policy | Annual profit (€) | Budget used (%) | Feasible |
-| --- | ---: | ---: | --- |
-| Unconstrained | 297,407 | 1,977 | No |
-| Coverage 0.70 | 297,500 | 1,461 | No |
-| Coverage 0.80 | 297,551 | 85 | Yes |
-| Coverage 0.90 | 272,882 | 0 | Yes |
-| Static fare 1.05 | 247,828 | 34 | Yes |
+| Policy | Mean annual profit (€) | Affordability cost as % of budget | Feasible |
+| --- | ---: | ---: | :---: |
+| Reward-only | 297,407 | 1,977 | No |
+| P70 | 297,500 | 1,461 | No |
+| P80 | 297,551 | 85 | Yes |
+| P90 | 272,882 | 0 | Yes |
+| Static 1.05 | 247,828 | 34 | Yes |
 
-Three findings.
+The results support four principal findings.
 
-**The affordability constraint at 0.80 coverage is close to free.** The constrained policy earns
-within the noise of unconstrained pricing while using 85% of a budget the unconstrained policy
-overruns nearly twentyfold. Paired annual-profit differences against unconstrained pricing contain
-zero in all six policy-by-replication comparisons at the 0.70 and 0.80 targets, that is, two
-coverage targets across three independent training replications.
+1. **Moderate affordability protection has no statistically resolved annual-profit penalty.**
+   Neither P70 nor P80 differs significantly from Reward-only in the paired annual comparisons.
+   The most adverse lower confidence bound limits the profit reduction consistent with the
+   intervals to 2.25% of Reward-only profit.
+2. **P80 crosses the common compliance boundary with little change in estimated profit.** At the
+   configuration means, P80 reduces common-target affordability cost by a factor of 23.3 relative
+   to Reward-only and records slightly higher mean profit. The paired analysis does not
+   statistically resolve that profit difference.
+3. **The strictest tested policy trades profit for zero common-target exceedance.** P90 records
+   zero cost in all fifteen final-seed evaluations under the common 0.80 benchmark. Its annual
+   profit is 7.6% to 9.1% lower than Reward-only across the three training replications.
+4. **Every learned dynamic pricing policy outperforms the optimised static fare in annual
+   profit.** P80 earns 20.1% more than Static 1.05 at the configuration means. All paired
+   confidence intervals comparing learned policies with the static benchmark exclude zero.
 
-**Tightening to 0.90 coverage is not free.** Annual profit falls by €22,600 to €27,400 depending
-on training replication, and every interval excludes zero. The policy prices at the affordability
-benchmark almost everywhere, consuming none of the budget.
+P80 and P90 constitute the non-dominated set among the tested configurations. P80 provides the
+highest mean annual profit among policies that satisfy the common standard. P90 accepts lower
+profit to eliminate measured common-target exceedance. These two observations describe the
+efficient tested alternatives and do not estimate a continuous theoretical frontier.
 
-**Dynamic pricing beats the best static fare under every affordability setting.** Margins of
-€48,400 to €51,500 per year for unconstrained and loosely constrained policies, €24,100 to €25,800
-at the tightest setting. Every interval excludes zero.
+At the assigned coverage targets, stochastic action selection accounts for 92.9% to 96.8% of
+sampled-action affordability cost under P80 and 96.9% to 98.7% under P90, across the three
+training replications. Compliance assessment must therefore evaluate executed stochastic quotes.
+Evaluation based only on the conditional mean action understates the cost generated during
+deployment.
 
-A fourth result is methodological. Stochastic execution, not the fare rule, consumes most of the
-affordability budget: the exploration premium accounts for 50% to 99% of sampled-action constraint
-cost across policy instances. A constrained policy that looks tight on the sampled measure may be
-pricing well inside the benchmark at its conditional mean. Reporting only the scalar sampled cost
-hides this.
+Tables EC1–EC14 in `Supplementary_Material.docx` provide the complete replication-level results,
+statistical comparisons and provenance records.
 
 ## Evaluation protocol
 
-The claim a constrained-RL paper has to support is that a policy satisfies its constraint on data
-it was not selected on. The protocol separates three stages with mutually disjoint seed sets,
-verified in code before the evaluator will run.
+The final protocol separates policy development from independent confirmation.
 
-| Stage | Purpose | Seeds |
+| Stage | Purpose | Number of seeds |
 | --- | --- | ---: |
 | Training | Estimate policy parameters | 3 |
-| Checkpoint selection | Choose one checkpoint per policy instance | 5 |
-| Independent confirmation | Estimate annual outcomes, certify feasibility | 5 |
+| Checkpoint selection | Choose one checkpoint for each policy instance | 5 |
+| Independent confirmation | Estimate annual outcomes and test feasibility | 5 |
+| Common-target accounting | Compare policies under the same 0.80 benchmark | Final annual seeds |
 
-Candidate checkpoints spanning 5 to 20 million training steps are scored on the selection seeds
-under a prespecified reward-and-feasibility rule. The selected checkpoint is then frozen and
-evaluated on seeds never previously used. A confirmation outcome does not trigger retrospective
-checkpoint replacement, which is what would turn confirmation back into selection.
+This reproduces the four stages recorded in Table EC11. Development seed roles used for
+τ-calibration, preliminary-frontier exploration and smoke testing are mutually disjoint from the
+above and are excluded from the final protocol.
 
-Feasibility is certified by a one-sided 95% upper confidence bound on constraint cost lying at or
-below the budget. One of fifteen policy-by-seed cells exceeds its bound by 1.7 × 10⁻⁷, around
-0.007% of the budget, and is reported as a numerical boundary case rather than rounded into a pass.
+Candidate checkpoints spanning 5 to 20 million training steps are evaluated with the five
+checkpoint-selection seeds after a 36-month unmeasured burn-in. The prespecified reward and
+feasibility rule selects one checkpoint for each policy instance. The selected checkpoint is then
+frozen and evaluated with five reserved annual seeds. A confirmation outcome does not trigger
+retrospective checkpoint replacement.
 
-Each evaluation runs 12 measured months after a 36-month unmeasured burn-in, so policies are
-assessed on a mature demand state rather than on the transient. The endogenous demand state is
-carried across the burn-in boundary while the random-number generator is reseeded there, which
-separates the burn-in and measurement substreams without discarding the state the burn-in built.
+Assigned-target feasibility uses the unrounded one-sided 95% upper confidence bound based on the
+0.95 quantile of Student's t-distribution with four degrees of freedom. Eight of the nine
+constrained policy instances satisfy the affordability budget at full numerical precision. For
+P90 under training seed 314159, the mean cost is 0.002461 and the upper confidence bound is
+0.002500174. The bound exceeds the budget by 1.74 × 10⁻⁷, equivalent to 0.007% of the budget. The
+prespecified rule classifies this instance as a failure at full precision.
 
-## Reproducibility
+Each final evaluation contains 12 measured chronological months after the 36-month burn-in. The
+persistent endogenous state continues across the burn-in boundary. Reseeding at that boundary
+separates the burn-in and measurement random-number substreams without discarding the mature
+state produced during burn-in.
 
-The archive binds results to the code and inputs that produced them by SHA-256 over source files,
-processed data, scenario manifests, selection reports and result archives. Reproduction runs in
-six steps: verify provenance, select checkpoints on the selection seeds, run annual confirmation
-on the confirmation seeds, verify accounting and measurement-boundary invariants, run common-target
-accounting, and construct the reported aggregates.
+## Repository contents
 
-The archive exists and the hashes are recorded in the manuscript's supplementary material. Its
-structure, for release:
-
+```text
+Supplementary_Material.docx      electronic companion, Tables EC1–EC14
+src/                             simulator, configuration and learning implementation
+scripts/training/                training entry point and Slurm launcher
+scripts/validation/              runtime, demand-signal and persistence checks
+workflows/static_fare/           static-fare grid evaluation and selection
+workflows/checkpoint_selection/  held-out checkpoint selection
+workflows/headline_evaluation/   independent mature-service annual evaluation
+workflows/common_080/            common-0.80 accounting and documented patches
+results/static_fare_selection/   static grid and frozen Static 1.05 selection record
+results/*.tar.gz                 checkpoint-selection and annual evaluation archives
+checkpoints/                     selected policy models and normalisation files
+manifests/                       candidate and scenario manifests
+environment/                     recorded Python and Conda environments
+provenance/                      file manifest and SHA-256 checksums
 ```
-environment/   pinned interpreter and dependency lock
-data/          processed inputs and checksums; access instructions for restricted sources
-src/           simulator, two-critic PPO, dual controller, evaluators
-manifests/     frozen scenario manifests and design fingerprints
-results/       seed-level results, policy summaries, paired comparisons
-logs/          run metadata and completion checks
-```
 
-**Data availability.** Simulator inputs were supplied by Ruter through the Oslo ULTIMO pilot and
-are not redistributable. The repository ships processed-input checksums and access instructions so
-a replication can verify it is working from identical data.
+`RESULT_COLUMN_MAPPING.md` maps manuscript measures to their archived columns and formulas.
+`STATISTICAL_CONVENTIONS.md` records the confidence-bound calculations used in the evaluation.
+
+## Reproduction
+
+1. Create the recorded environment from `environment/`.
+2. Obtain the three processed runtime inputs identified under **Data availability**, verify their
+   hashes against Table EC12 and place them in `src/data/`.
+3. Run the checks in `scripts/validation/`.
+4. Train one policy for each configuration and training seed using `scripts/training/`.
+5. Select checkpoints with `workflows/checkpoint_selection/`.
+6. Reproduce the fixed-fare grid with `workflows/static_fare/`.
+7. Run the final mature-service evaluation with `workflows/headline_evaluation/`.
+8. Run the already patched common-target workflow in `workflows/common_080/`.
+
+The frozen Slurm launchers and metadata retain the original HPC paths as provenance. Execution in
+another environment requires updating the working directory, Python executable, model root and
+output root and setting `PYTHONPATH` to `src/`.
+
+The reported common-target results use `common_target_080_mature36/` in the common-target result
+archive. The directory `common_target_080_failed_1992134/` contains the superseded pre-hotfix run
+and contributes no reported result.
+
+## Data availability
+
+The three processed runtime inputs supporting the study are `hourly_demand.csv`,
+`enriched_trip_requests.csv` and `zone_demand_summary.json`. They are deposited in the public
+research-data record linked below. SHA-256 values in Table EC12 and `provenance/` identify the
+exact versions used in the reported experiments.
+
+**Data record:** `[INSERT PUBLIC DATA REPOSITORY URL BEFORE RELEASE]`
+
+The present repository contains the code, checkpoints, manifests, workflows and frozen result
+records required to audit the reported analysis. Re-execution additionally requires the three
+processed input files from the linked data record.
+
+## Integrity
+
+`provenance/SHA256SUMS` records every file in the frozen release except the checksum file itself.
+`provenance/FILE_MANIFEST.tsv` records the relative path, file size and SHA-256 hash of each
+included file. Verification commands are provided in `provenance/VERIFY_ARCHIVE.txt`.
 
 ## Citation
 
+Create a numbered release and archive it in a DOI-issuing repository before making the
+computational record public. Replace the placeholders below with the complete manuscript author
+list and the final DOI.
+
 ```bibtex
-@unpublished{zigah_cmdp_pricing,
-  author = {Zigah, Elias},
-  title  = {Constrained Markov decision process for dynamic pricing
-            under long-run affordability requirements},
-  note   = {Under review, Transportation Research Part B: Methodological},
-  year   = {2026}
+@software{zigah_cmdp_pricing_2026,
+  author    = {Zigah, Elias and [COAUTHORS]},
+  title     = {Computational Archive for Dynamic Pricing Regulation for Public Shared
+               Autonomous Vehicle Services},
+  year      = {2026},
+  version   = {1.0.0},
+  publisher = {Zenodo},
+  doi       = {[DOI]},
+  url       = {https://doi.org/[DOI]}
 }
 ```
+
+## Acknowledgements
+
+The authors thank Ruter, the public transport authority for Oslo and Akershus, for providing the
+operational data used in the simulation and for sharing practical insights into the design and
+operation of on-demand shared autonomous vehicle services. Their feedback helped align the
+modelling assumptions and policy questions with the operational context of public transport
+provision. This research was conducted within the framework of the European Union's ULTIMO
+project. The interpretations and conclusions remain those of the authors.
+
 
